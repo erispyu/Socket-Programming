@@ -309,7 +309,7 @@ void get_and_sort_all_transactions() {
 }
 
 void output_tx_list() {
-    fstream output_file;
+    ofstream output_file;
     output_file.open(TX_LIST_FILE_PATH);
 
     for (int i = 0; i < transaction_list.size(); i++) {
