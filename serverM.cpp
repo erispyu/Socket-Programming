@@ -187,8 +187,11 @@ void start_udp_talker(int slave_index) {
 }
 
 void boot_up_serverM() {
-//    start_udp_listener(UDP_PORT_SERVER_M);
-//
+    start_udp_listener(UDP_PORT_SERVER_M);
+
+    udp_port_list[0] = UDP_PORT_SERVER_A;
+    udp_port_list[1] = UDP_PORT_SERVER_B;
+    udp_port_list[2] = UDP_PORT_SERVER_C;
 //    start_udp_talker(0);
 //    start_udp_talker(1);
 //    start_udp_talker(2);
@@ -229,7 +232,7 @@ void listen_from_slave_server(int i) {
 //    memset(&query_result, 0, sizeof(query_result));
 //    memcpy(&query_result, recv_buffer, sizeof(query_result));
 
-    cout << "The main server received the feedback from server " << (char) ('A' + i) << "using UDP over port "
+    cout << "The main server received the feedback from server " << (char) ('A' + i) << " using UDP over port "
          << udp_port_list[i] << "." << endl;
 }
 
@@ -244,8 +247,8 @@ int check_wallet(string username) {
     query.sender = username;
 
     for (int i = 0; i < SLAVE_SERVER_SIZE; i++) {
-//        talk_to_slave_server(i);
-//        listen_from_slave_server(i);
+        talk_to_slave_server(i);
+        listen_from_slave_server(i);
 
         for (int k = 0; k < query_result.size; k++) {
             Transaction t = query_result.transaction_list[k];
@@ -279,8 +282,12 @@ bool tx_coins(string sender, string receiver, int amount) {
     talk_to_slave_server(server_index);
     listen_from_slave_server(server_index);
 
+    query_result.size = 1;
+
     if (query_result.size == 1) {
         max_serial_number += 1;
+        sender_balance -= amount;
+        query_result.size = sender_balance;
         return true;
     }
 
@@ -340,6 +347,11 @@ void* handle_client_operations(void* param) {
             perror("accept");
             continue;
         }
+        memset(&operations[client_index], 0, sizeof(operations[client_index]));
+        memset(&operation_results[client_index], 0, sizeof(operation_results[client_index]));
+        memset(&query, 0, sizeof(query));
+        memset(&query_result, 0, sizeof(query_result));
+
         memset(&buf, 0, BUF_SIZE);
         read(new_fd, buf, BUF_SIZE);
         memset(&operations[client_index], 0, sizeof(operations[client_index]));
@@ -364,8 +376,10 @@ void* handle_client_operations(void* param) {
                                        operations[client_index].amount);
             if (is_success) {
                 operation_results[client_index].size = 1;
+                operation_results[client_index].transaction_list[0].amount = query_result.size;
             } else {
                 operation_results[client_index].size = 0;
+                operation_results[client_index].transaction_list[0].amount = query_result.size;
             }
 
             if (send(new_fd, &operation_results[client_index], sizeof operation_results[client_index], 0) == -1)

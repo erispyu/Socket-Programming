@@ -105,22 +105,20 @@ void check_wallet(string username) {
 }
 
 void tx_coins(string sender, string receiver, int amount) {
-    check_wallet(sender);
-
     operation.serial_number = TX_COINS;
     operation.sender = sender;
     operation.receiver = receiver;
     operation.amount = amount;
     send();
-    cout << "\"" << sender << "\" has requested to transfer " << amount << " coins to s\"" << receiver << "\"." << endl;
+    cout << "\"" << sender << "\" has requested to transfer " << amount << " coins to \"" << receiver << "\"." << endl;
     receive();
     if (operation_result.size == 0) {
         cout << "\"" << sender << "\" was unable to transfer " << amount << " alicoins to \"" << receiver << "\" because of insufficient balance." << endl;
     } else {
         cout << "\"" << sender << "\" successfully transferred " << amount << " alicoins to \"" << receiver << "\"." << endl;
     }
-
-    check_wallet(sender);
+    int balance = operation_result.transaction_list[0].amount;
+    cout << "The current balance of \"" << sender << "\" is : " << balance << " alicoins." << endl;
 }
 
 void get_and_sort_all_transactions() {
