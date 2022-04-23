@@ -294,9 +294,11 @@ bool tx_coins(string sender, string receiver, int amount) {
 
 void get_and_sort_all_transactions() {
     query.serial_number = TX_LIST;
+
     for (int i = 0; i < SLAVE_SERVER_SIZE; i++) {
         talk_to_slave_server(i);
         listen_from_slave_server(i);
+
         for (int k = 0; k < query_result.size; k++) {
             Transaction t = query_result.transaction_list[k];
             if (t.serial_number > max_serial_number) {
@@ -304,8 +306,9 @@ void get_and_sort_all_transactions() {
             }
             transaction_list.push_back(t);
         }
-        sort(transaction_list.begin(), transaction_list.end(), compareTransaction);
     }
+
+    sort(transaction_list.begin(), transaction_list.end(), compareTransaction);
 }
 
 void output_tx_list() {
