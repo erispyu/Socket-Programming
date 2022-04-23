@@ -8,6 +8,7 @@
 
 #define localhost "127.0.0.1"
 #define UDP_PORT "21256"
+#define UDP_PORT_SERVER_M "24256"
 #define BLOCK_FILE_PATH "./block1.txt"
 
 #define BUF_SIZE 2048
@@ -21,8 +22,9 @@
 
 using namespace std;
 
-int sockfd;
-struct addrinfo *serverM;
+int slave_server;
+int main_server;
+struct addrinfo *p;
 
 struct Transaction {
     int serial_number;
@@ -42,6 +44,8 @@ char recv_buf[BUF_SIZE];
 Transaction query;
 QueryResult query_result;
 
+
+// refer to https://beej.us/guide/bgnet/examples/listener.c
 void start_upd_listener() {
     struct addrinfo hints, *servinfo, *p;
     int rv;
@@ -57,13 +61,14 @@ void start_upd_listener() {
     }
 
     for (p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                             p->ai_protocol)) == -1) {
+        if ((slave_server = socket(p->ai_family, p->ai_socktype,
+                                   p->ai_protocol)) == -1) {
             continue;
         }
 
-        if (::bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
+        if (::bind(slave_server, p->ai_addr, p->ai_addrlen) == -1) {
+            close(slave_server);
+            perror("listener: bind");
             continue;
         }
 
@@ -78,23 +83,23 @@ void start_upd_listener() {
 }
 
 void start_udp_talker() {
-    int sockfd;
-    struct addrinfo hints, *servinfo, *p;
+    struct addrinfo hints, *servinfo;
     int rv;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
 
-    if ((rv = getaddrinfo(localhost, UDP_PORT, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(localhost, UDP_PORT_SERVER_M, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         exit(1);
     }
 
     // loop through all the results and make a socket
-    for (p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((main_server = socket(p->ai_family, p->ai_socktype,
                              p->ai_protocol)) == -1) {
+            perror("talker: socket");
             continue;
         }
 
@@ -102,10 +107,9 @@ void start_udp_talker() {
     }
 
     if (p == NULL) {
+        fprintf(stderr, "talker: failed to create socket\n");
         exit(2);
     }
-
-    serverM = servinfo;
 }
 
 void parse_block_file() {
@@ -166,7 +170,7 @@ void listen_from_serverM() {
     socklen_t addr_len = sizeof their_addr;
 
     memset(recv_buf, 0, BUF_SIZE);
-    int recvfrom_result = recvfrom(sockfd, &recv_buf, BUF_SIZE, FLAG, (struct sockaddr *)&their_addr, &addr_len);
+    int recvfrom_result = recvfrom(slave_server, &recv_buf, BUF_SIZE, FLAG, (struct sockaddr *)&their_addr, &addr_len);
     if (recvfrom_result == -1) {
         perror("recvfrom error");
         exit(1);
@@ -179,7 +183,8 @@ void listen_from_serverM() {
 }
 
 void talk_to_serverM() {
-    if (sendto(sockfd, &query_result, sizeof(query_result), 0, serverM->ai_addr, serverM->ai_addrlen) == -1) {
+    int sendto_result = sendto(slave_server, &query_result, sizeof(query_result), FLAG, p->ai_addr, p->ai_addrlen);
+    if (sendto_result == -1) {
         perror("talker: sendto");
         exit(1);
     }
@@ -189,8 +194,6 @@ void talk_to_serverM() {
 
 void handle_query() {
     memset(&query_result, 0, sizeof query_result);
-
-    cout << query.serial_number << ":" << query.sender << ":" << query.receiver << ":" << query.amount << endl;
 
     if (query.serial_number == CHECK_WALLET) {
         vector<struct Transaction> related_transactions = find_related_transactions(query.sender);

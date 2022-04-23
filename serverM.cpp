@@ -24,7 +24,7 @@
 #define UDP_PORT_SERVER_A "21256"
 #define UDP_PORT_SERVER_B "22256"
 #define UDP_PORT_SERVER_C "23256"
-#define SLAVE_SERVER_SIZE 3
+#define SLAVE_SERVER_SIZE 1
 
 #define UDP_PORT_SERVER_M "24256"
 #define TCP_PORT_CLIENT_A "25256"
@@ -67,17 +67,18 @@ QueryResult query_result;
 Transaction operations[CLIENT_SIZE];
 QueryResult operation_results[CLIENT_SIZE];
 
-int sockfd_udp_serverM;
 int tcp_listener[CLIENT_SIZE];
 const char* tcp_port_list[CLIENT_SIZE];
 
+int udp_listener;
+int udp_talkers[SLAVE_SERVER_SIZE];
 struct addrinfo* slave_server_info_list[SLAVE_SERVER_SIZE];
 const char* udp_port_list[SLAVE_SERVER_SIZE];
 
 int max_serial_number = 0;
 
 // refer to https://beej.us/guide/bgnet/examples/listener.c
-void start_udp_listener(const char *port) {
+void start_udp_listener() {
     struct addrinfo hints, *servinfo, *p;
     int rv;
 
@@ -86,19 +87,19 @@ void start_udp_listener(const char *port) {
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE;
 
-    if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, UDP_PORT_SERVER_M, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         exit(1);
     }
 
     for (p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd_udp_serverM = socket(p->ai_family, p->ai_socktype,
-                                         p->ai_protocol)) == -1) {
+        if ((udp_listener = socket(p->ai_family, p->ai_socktype,
+                                   p->ai_protocol)) == -1) {
             continue;
         }
 
-        if (::bind(sockfd_udp_serverM, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd_udp_serverM);
+        if (::bind(udp_listener, p->ai_addr, p->ai_addrlen) == -1) {
+            close(udp_listener);
             continue;
         }
 
@@ -158,7 +159,6 @@ void start_tcp_listener(int client_index) {
 
 // refer to https://beej.us/guide/bgnet/examples/talker.c
 void start_udp_talker(int slave_index) {
-    int sockfd;
     struct addrinfo hints, *servinfo, *p;
     int rv;
 
@@ -173,7 +173,7 @@ void start_udp_talker(int slave_index) {
 
     // loop through all the results and make a socket
     for (p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+        if ((udp_talkers[slave_index] = socket(p->ai_family, p->ai_socktype,
                              p->ai_protocol)) == -1) {
             perror("talker: socket");
             continue;
@@ -186,15 +186,17 @@ void start_udp_talker(int slave_index) {
         fprintf(stderr, "talker: failed to create socket\n");
         exit(2);
     }
+
+    slave_server_info_list[slave_index] = p;
 }
 
 void boot_up_serverM() {
-    start_udp_listener(UDP_PORT_SERVER_M);
+    start_udp_listener();
 
     udp_port_list[0] = UDP_PORT_SERVER_A;
-    udp_port_list[1] = UDP_PORT_SERVER_B;
-    udp_port_list[2] = UDP_PORT_SERVER_C;
-//    start_udp_talker(0);
+//    udp_port_list[1] = UDP_PORT_SERVER_B;
+//    udp_port_list[2] = UDP_PORT_SERVER_C;
+    start_udp_talker(0);
 //    start_udp_talker(1);
 //    start_udp_talker(2);
 
@@ -208,31 +210,31 @@ void boot_up_serverM() {
 }
 
 void talk_to_slave_server(int i) {
-//    sockaddr *slave_server_addr = slave_server_info_list[i]->ai_addr;
-//    socklen_t slave_server_addrlen = slave_server_info_list[i]->ai_addrlen;
-//
-//    int sendto_result = sendto(sockfd_udp_serverM, &query, sizeof(query), FLAG, slave_server_addr,
-//                               slave_server_addrlen);
-//    if (sendto_result == -1) {
-//        exit(1);
-//    }
+    sockaddr *slave_server_addr = slave_server_info_list[i]->ai_addr;
+    socklen_t slave_server_addrlen = slave_server_info_list[i]->ai_addrlen;
+
+    int sendto_result = sendto(udp_talkers[i], &query, sizeof(query), FLAG, slave_server_addr,
+                               slave_server_addrlen);
+    if (sendto_result == -1) {
+        exit(1);
+    }
 
     cout << "The main server sent a request to server " << (char) ('A' + i) << "." << endl;
 }
 
 void listen_from_slave_server(int i) {
-//    memset(recv_buffer, 0, BUF_SIZE);
-//    struct sockaddr_storage their_addr;
-//    socklen_t addr_len = sizeof their_addr;
-//    int recv_result = recvfrom(sockfd_udp_serverM, &recv_buffer, BUF_SIZE, FLAG, (struct sockaddr *) &their_addr,
-//                               &addr_len);
-//    if (recv_result == -1) {
-//        perror("recvfrom error");
-//        exit(1);
-//    }
-//
-//    memset(&query_result, 0, sizeof(query_result));
-//    memcpy(&query_result, recv_buffer, sizeof(query_result));
+    memset(recv_buffer, 0, BUF_SIZE);
+    struct sockaddr_storage their_addr;
+    socklen_t addr_len = sizeof their_addr;
+    int recv_result = recvfrom(udp_listener, &recv_buffer, BUF_SIZE, FLAG, (struct sockaddr *) &their_addr,
+                               &addr_len);
+    if (recv_result == -1) {
+        perror("recvfrom error");
+        exit(1);
+    }
+
+    memset(&query_result, 0, sizeof(query_result));
+    memcpy(&query_result, recv_buffer, sizeof(query_result));
 
     cout << "The main server received the feedback from server " << (char) ('A' + i) << " using UDP over port "
          << udp_port_list[i] << "." << endl;
