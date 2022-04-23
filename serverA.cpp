@@ -143,7 +143,7 @@ void log_new_transaction(Transaction t) {
     transaction_list.push_back(t);
 
     fstream output_file;
-    output_file.open(BLOCK_FILE_PATH, ios_base::app | ios_base::in | ios::skipws);
+    output_file.open(BLOCK_FILE_PATH, ios_base::app | ios_base::in);
 
     output_file << t.serial_number;
     output_file << " ";

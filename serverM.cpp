@@ -275,6 +275,7 @@ int check_wallet(string username) {
 bool tx_coins(string sender, string receiver, int amount) {
     int sender_balance = check_wallet(sender);
     if (sender_balance < amount) {
+        query_result.size = sender_balance;
         return false;
     }
     int serial_number = max_serial_number + 1;
@@ -288,7 +289,7 @@ bool tx_coins(string sender, string receiver, int amount) {
     talk_to_slave_server(server_index);
     listen_from_slave_server(server_index);
 
-    if (query_result.size == 1) {
+    if (query_result.size == LOGGED) {
         max_serial_number += 1;
         sender_balance -= amount;
         query_result.size = sender_balance;
