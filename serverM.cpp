@@ -236,6 +236,10 @@ void listen_from_slave_server(int i) {
     memset(&query_result, 0, sizeof(query_result));
     memcpy(&query_result, recv_buffer, sizeof(query_result));
 
+    if (max_serial_number < query_result.transaction_list[0].serial_number) {
+        max_serial_number = query_result.transaction_list[0].serial_number;
+    }
+
     cout << "The main server received the feedback from server " << (char) ('A' + i) << " using UDP over port "
          << udp_port_list[i] << "." << endl;
 }
@@ -253,10 +257,6 @@ int check_wallet(string username) {
     for (int i = 0; i < SLAVE_SERVER_SIZE; i++) {
         talk_to_slave_server(i);
         listen_from_slave_server(i);
-
-        if (max_serial_number < query_result.transaction_list[0].serial_number) {
-            max_serial_number = query_result.transaction_list[0].serial_number;
-        }
 
         for (int k = 0; k < query_result.size; k++) {
             Transaction t = query_result.transaction_list[k];
