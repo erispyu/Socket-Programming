@@ -471,9 +471,10 @@ int main() {
         pthread_t clientB_handler;
         int index_A = 0;
         pthread_create(&clientA_handler, NULL, handle_client_operations, (void *)&(index_A));
-        pthread_join(clientA_handler, NULL);
-        int index_B = 0;
+        int index_B = 1;
         pthread_create(&clientB_handler, NULL, handle_client_operations, (void *)&(index_B));
+
+        pthread_join(clientA_handler, NULL);
         pthread_join(clientB_handler, NULL);
     }
     return 0;

@@ -77,13 +77,19 @@ void start_tcp() {
     freeaddrinfo(servinfo); // all done with this structure
 }
 
+// refer to: https://beej.us/guide/bgnet/examples/client.c
 void send() {
     if (send(sockfd, &operation, sizeof operation, 0) == -1)
         perror("send");
 }
 
+// refer to: https://beej.us/guide/bgnet/examples/client.c
 void receive() {
-    read(sockfd, buf, BUF_SIZE);
+    memset(&buf, 0, sizeof BUF_SIZE);
+    if (recv(sockfd, buf, BUF_SIZE, 0) == -1) {
+        perror("recv");
+        exit(1);
+    }
     memset(&operation_result, 0, sizeof operation_result);
     memcpy(&operation_result, buf, sizeof operation_result);
 }
@@ -99,22 +105,20 @@ void check_wallet(string username) {
 }
 
 void tx_coins(string sender, string receiver, int amount) {
-    check_wallet(sender);
-
     operation.serial_number = TX_COINS;
     operation.sender = sender;
     operation.receiver = receiver;
     operation.amount = amount;
     send();
-    cout << "\"" << sender << "\" has requested to transfer " << amount << " coins to s\"" << receiver << "\"." << endl;
+    cout << "\"" << sender << "\" has requested to transfer " << amount << " coins to \"" << receiver << "\"." << endl;
     receive();
     if (operation_result.size == 0) {
         cout << "\"" << sender << "\" was unable to transfer " << amount << " alicoins to \"" << receiver << "\" because of insufficient balance." << endl;
     } else {
         cout << "\"" << sender << "\" successfully transferred " << amount << " alicoins to \"" << receiver << "\"." << endl;
     }
-
-    check_wallet(sender);
+    int balance = operation_result.transaction_list[0].amount;
+    cout << "The current balance of \"" << sender << "\" is : " << balance << " alicoins." << endl;
 }
 
 void get_and_sort_all_transactions() {
@@ -131,10 +135,9 @@ void stats(string sender) {
     cout << "\"" << sender << "\" sent a statistics enquiry request to the main server." << endl;
     receive();
     cout << "\"" << sender << "\" statistics are the following.:" << endl;
-    cout << "Rank--Username--NumofTransacions--Total" << endl;
     for (int i = 0; i < operation_result.size; i++) {
         Transaction t = operation_result.transaction_list[i];
-        cout << t.serial_number << "--" << t.sender << "--" << operation_result.size << endl;
+        cout << i + 1 << "\t" << t.sender << "\t" << t.serial_number << "\t" << t.amount << endl;
     }
 }
 
@@ -145,22 +148,30 @@ int main(int argc, char *argv[])
     start_tcp();
     cout << "The client is up and running." << endl;
 
-    if (argc == 1 && strcmp(argv[0], "TXLIST") == 0) {
-        get_and_sort_all_transactions();
-    }
+    while (true) {
+        if (argc == 2 && strcmp(argv[1], "TXLIST") == 0) {
+            get_and_sort_all_transactions();
+            close(sockfd);
+            return 0;
+        }
 
-    else if (argc == 1) {
-        check_wallet(argv[0]);
-    }
+        else if (argc == 2) {
+            check_wallet(argv[1]);
+            close(sockfd);
+            return 0;
+        }
 
-    else if (argc == 2 && strcmp(argv[0], "stats") == 0) {
-        stats(argv[0]);
-    }
+        else if (argc == 3 && strcmp(argv[2], "stats") == 0) {
+            stats(argv[1]);
+            close(sockfd);
+            return 0;
+        }
 
-    else if (argc == 3) {
-        tx_coins(argv[0], argv[1], atoi(argv[2]));
+        else if (argc == 4) {
+            tx_coins(argv[1], argv[2], atoi(argv[3]));
+            close(sockfd);
+            return 0;
+        }
     }
-
-    close(sockfd);
     return 0;
 }
