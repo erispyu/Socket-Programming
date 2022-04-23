@@ -282,8 +282,6 @@ bool tx_coins(string sender, string receiver, int amount) {
     talk_to_slave_server(server_index);
     listen_from_slave_server(server_index);
 
-    query_result.size = 1;
-
     if (query_result.size == 1) {
         max_serial_number += 1;
         sender_balance -= amount;
