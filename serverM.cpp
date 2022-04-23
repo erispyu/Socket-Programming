@@ -17,6 +17,7 @@
 #include <poll.h>
 #include <fstream>
 #include <pthread.h>
+#include <map>
 
 #define localhost "127.0.0.1"
 
@@ -57,6 +58,7 @@ struct QueryResult {
 };
 
 vector<struct Transaction> transaction_list;
+vector<struct Transaction> stats_list;
 
 char recv_buffer[BUF_SIZE];
 Transaction query;
@@ -292,7 +294,9 @@ bool tx_coins(string sender, string receiver, int amount) {
     return false;
 }
 
-void get_and_sort_all_transactions() {
+void get_all_transactions() {
+    transaction_list.clear();
+
     query.serial_number = TX_LIST;
 
     for (int i = 0; i < SLAVE_SERVER_SIZE; i++) {
@@ -307,8 +311,6 @@ void get_and_sort_all_transactions() {
             transaction_list.push_back(t);
         }
     }
-
-    sort(transaction_list.begin(), transaction_list.end(), compareTransaction);
 }
 
 void output_tx_list() {
@@ -330,8 +332,63 @@ void output_tx_list() {
 }
 
 void tx_list() {
-    get_and_sort_all_transactions();
+    get_all_transactions();
+    sort(transaction_list.begin(), transaction_list.end(), compareTransaction);
     output_tx_list();
+}
+
+bool compare_stats(Transaction s1, Transaction s2) {
+    return (s1.serial_number > s2.serial_number);
+}
+
+void stats() {
+    get_all_transactions();
+    map<string, Transaction> user_stats_map;
+    for (int i = 0; i < transaction_list.size(); i++) {
+        Transaction t = transaction_list.at(i);
+        map<string, Transaction>::iterator sender_it = user_stats_map.find(t.sender);
+        map<string, Transaction>::iterator receiver_it = user_stats_map.find(t.receiver);
+
+        Transaction sender_stats;
+        Transaction receiver_stats;
+
+        if (sender_it == user_stats_map.end()) {
+            sender_stats.serial_number = 1;
+            sender_stats.amount = -t.amount;
+        } else {
+            sender_stats = sender_it->second;
+            sender_stats.serial_number += 1;
+            sender_stats.amount -= t.amount;
+            user_stats_map.erase(t.sender);
+        }
+        user_stats_map.insert(pair<string, Transaction>(t.sender, sender_stats));
+
+        if (receiver_it == user_stats_map.end()) {
+            receiver_stats.serial_number = 1;
+            receiver_stats.amount = t.amount;
+        } else {
+            receiver_stats = receiver_it->second;
+            receiver_stats.serial_number += 1;
+            receiver_stats.amount += t.amount;
+            user_stats_map.erase(t.receiver);
+        }
+        user_stats_map.insert(pair<string, Transaction>(t.receiver, receiver_stats));
+    }
+
+    stats_list.clear();
+    map<string, Transaction>::iterator it;
+    map<string, Transaction>::iterator it_end;
+    it = user_stats_map.begin();
+    it_end = user_stats_map.end();
+    while (it != it_end) {
+        Transaction stats;
+        stats.serial_number = it->second.serial_number;
+        stats.sender = it->first;
+        stats.amount = it->second.amount;
+        stats_list.push_back(stats);
+        it++;
+    }
+    sort(stats_list.begin(), stats_list.end(), compare_stats);
 }
 
 void* handle_client_operations(void* param) {
@@ -396,10 +453,10 @@ void* handle_client_operations(void* param) {
         }
 
         else if (operations[client_index].serial_number == STATS) {
-            tx_list();
-            operation_results[client_index].size = transaction_list.size();
-            for (int i = 0; i < transaction_list.size(); i++) {
-                operation_results[client_index].transaction_list[i] = transaction_list.at(i);
+            stats();
+            operation_results[client_index].size = stats_list.size();
+            for (int i = 0; i < stats_list.size(); i++) {
+                operation_results[client_index].transaction_list[i] = stats_list.at(i);
             }
             if (send(new_fd, &operation_results[client_index], sizeof operation_results[client_index], 0) == -1)
                 perror("send");

@@ -135,10 +135,9 @@ void stats(string sender) {
     cout << "\"" << sender << "\" sent a statistics enquiry request to the main server." << endl;
     receive();
     cout << "\"" << sender << "\" statistics are the following.:" << endl;
-    cout << "Rank--Username--NumofTransacions--Total" << endl;
     for (int i = 0; i < operation_result.size; i++) {
         Transaction t = operation_result.transaction_list[i];
-        cout << t.serial_number << "--" << t.sender << "--" << operation_result.size << endl;
+        cout << i + 1 << "\t" << t.sender << "\t" << t.serial_number << "\t" << t.amount << endl;
     }
 }
 
