@@ -254,11 +254,12 @@ int check_wallet(string username) {
         talk_to_slave_server(i);
         listen_from_slave_server(i);
 
+        if (max_serial_number < query_result.transaction_list[0].serial_number) {
+            max_serial_number = query_result.transaction_list[0].serial_number;
+        }
+
         for (int k = 0; k < query_result.size; k++) {
             Transaction t = query_result.transaction_list[k];
-            if (t.serial_number > max_serial_number) {
-                max_serial_number = t.serial_number;
-            }
             if (t.sender == username) {
                 balance -= t.amount;
             }
@@ -282,7 +283,8 @@ bool tx_coins(string sender, string receiver, int amount) {
     query.receiver = receiver;
     query.amount = amount;
 
-    int server_index = serial_number % 3;
+//    int server_index = serial_number % 3;
+    int server_index = 0;
     talk_to_slave_server(server_index);
     listen_from_slave_server(server_index);
 
@@ -407,7 +409,6 @@ void* handle_client_operations(void* param) {
             perror("accept");
             continue;
         }
-        memset(&operations[client_index], 0, sizeof(operations[client_index]));
         memset(&operation_results[client_index], 0, sizeof(operation_results[client_index]));
         memset(&query, 0, sizeof(query));
         memset(&query_result, 0, sizeof(query_result));

@@ -26,6 +26,8 @@ int slave_server;
 int main_server;
 struct addrinfo *p;
 
+int max_serial = 0;
+
 struct Transaction {
     int serial_number;
     string sender;
@@ -123,6 +125,9 @@ void parse_block_file() {
 
         input_file >> serial_number_str;
         t.serial_number = stoi(serial_number_str);
+        if (max_serial < t.serial_number) {
+            max_serial = t.serial_number;
+        }
         input_file >> t.sender;
         input_file >> t.receiver;
         input_file >> amount_str;
@@ -183,6 +188,7 @@ void listen_from_serverM() {
 }
 
 void talk_to_serverM() {
+    query_result.transaction_list[0].serial_number = max_serial;
     int sendto_result = sendto(slave_server, &query_result, sizeof(query_result), FLAG, p->ai_addr, p->ai_addrlen);
     if (sendto_result == -1) {
         perror("talker: sendto");
