@@ -7,9 +7,9 @@
 #include <unistd.h>
 
 #define localhost "127.0.0.1"
-#define UDP_PORT "21256"
+#define UDP_PORT "23256"
 #define UDP_PORT_SERVER_M "24256"
-#define BLOCK_FILE_PATH "./block1.txt"
+#define BLOCK_FILE_PATH "./block3.txt"
 
 #define BUF_SIZE 2048
 #define FLAG 0
@@ -100,7 +100,7 @@ void start_udp_talker() {
     // loop through all the results and make a socket
     for(p = servinfo; p != NULL; p = p->ai_next) {
         if ((main_server = socket(p->ai_family, p->ai_socktype,
-                             p->ai_protocol)) == -1) {
+                                  p->ai_protocol)) == -1) {
             perror("talker: socket");
             continue;
         }
@@ -184,7 +184,7 @@ void listen_from_serverM() {
     memset(&query, 0, sizeof(query));
     memcpy(&query, recv_buf, sizeof(query));
 
-    cout << "The ServerA received a request from the Main Server." << endl;
+    cout << "The ServerC received a request from the Main Server." << endl;
 }
 
 void talk_to_serverM() {
@@ -194,7 +194,7 @@ void talk_to_serverM() {
         perror("talker: sendto");
         exit(1);
     }
-    cout << "The ServerA finished sending the response to the Main Server." << endl;
+    cout << "The ServerC finished sending the response to the Main Server." << endl;
 }
 
 
@@ -229,7 +229,7 @@ int main() {
     start_upd_listener();
     start_udp_talker();
     parse_block_file();
-    cout << "The ServerA is up and running using UDP on port " << UDP_PORT << "." << endl;
+    cout << "The ServerC is up and running using UDP on port " << UDP_PORT << "." << endl;
 
     while(true) {
         listen_from_serverM();

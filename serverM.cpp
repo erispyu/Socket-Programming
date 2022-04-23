@@ -24,7 +24,7 @@
 #define UDP_PORT_SERVER_A "21256"
 #define UDP_PORT_SERVER_B "22256"
 #define UDP_PORT_SERVER_C "23256"
-#define SLAVE_SERVER_SIZE 1
+#define SLAVE_SERVER_SIZE 3
 
 #define UDP_PORT_SERVER_M "24256"
 #define TCP_PORT_CLIENT_A "25256"
@@ -194,11 +194,11 @@ void boot_up_serverM() {
     start_udp_listener();
 
     udp_port_list[0] = UDP_PORT_SERVER_A;
-//    udp_port_list[1] = UDP_PORT_SERVER_B;
-//    udp_port_list[2] = UDP_PORT_SERVER_C;
+    udp_port_list[1] = UDP_PORT_SERVER_B;
+    udp_port_list[2] = UDP_PORT_SERVER_C;
     start_udp_talker(0);
-//    start_udp_talker(1);
-//    start_udp_talker(2);
+    start_udp_talker(1);
+    start_udp_talker(2);
 
     tcp_port_list[0] = TCP_PORT_CLIENT_A;
     tcp_port_list[1] = TCP_PORT_CLIENT_B;
@@ -284,8 +284,7 @@ bool tx_coins(string sender, string receiver, int amount) {
     query.receiver = receiver;
     query.amount = amount;
 
-//    int server_index = serial_number % 3;
-    int server_index = 0;
+    int server_index = serial_number % 3;
     talk_to_slave_server(server_index);
     listen_from_slave_server(server_index);
 
