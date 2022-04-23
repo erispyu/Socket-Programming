@@ -41,7 +41,7 @@ QueryResult operation_result;
 int sockfd;
 char buf[BUF_SIZE];
 
-int start_tcp() {
+void start_tcp() {
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET_ADDRSTRLEN];
@@ -52,7 +52,6 @@ int start_tcp() {
 
     if ((rv = getaddrinfo(localhost, TCP_PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
     }
 
     for(p = servinfo; p != NULL; p = p->ai_next) {
@@ -73,19 +72,24 @@ int start_tcp() {
 
     if (p == NULL) {
         fprintf(stderr, "client: failed to connect\n");
-        return 2;
     }
 
     freeaddrinfo(servinfo); // all done with this structure
 }
 
+// refer to: https://beej.us/guide/bgnet/examples/client.c
 void send() {
     if (send(sockfd, &operation, sizeof operation, 0) == -1)
         perror("send");
 }
 
+// refer to: https://beej.us/guide/bgnet/examples/client.c
 void receive() {
-    read(sockfd, buf, BUF_SIZE);
+    memset(&buf, 0, sizeof BUF_SIZE);
+    if (recv(sockfd, buf, BUF_SIZE, 0) == -1) {
+        perror("recv");
+        exit(1);
+    }
     memset(&operation_result, 0, sizeof operation_result);
     memcpy(&operation_result, buf, sizeof operation_result);
 }
@@ -147,22 +151,30 @@ int main(int argc, char *argv[])
     start_tcp();
     cout << "The client is up and running." << endl;
 
-    if (argc == 1 && argv[0] == "TXLIST") {
-        get_and_sort_all_transactions();
-    }
+    while (true) {
+        if (argc == 2 && strcmp(argv[1], "TXLIST") == 0) {
+            get_and_sort_all_transactions();
+            close(sockfd);
+            return 0;
+        }
 
-    else if (argc == 1) {
-        check_wallet(argv[0]);
-    }
+        else if (argc == 2) {
+            check_wallet(argv[1]);
+            close(sockfd);
+            return 0;
+        }
 
-    else if (argc == 2 && argv[1] == "stats") {
-        stats(argv[0]);
-    }
+        else if (argc == 3 && strcmp(argv[2], "stats") == 0) {
+            stats(argv[1]);
+            close(sockfd);
+            return 0;
+        }
 
-    else if (argc == 3) {
-        tx_coins(argv[0], argv[1], atoi(argv[2]));
+        else if (argc == 4) {
+            tx_coins(argv[1], argv[2], atoi(argv[3]));
+            close(sockfd);
+            return 0;
+        }
     }
-
-    close(sockfd);
     return 0;
 }

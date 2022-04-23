@@ -1,10 +1,10 @@
 # the compiler: gcc for C program, define as g++ for C++
 CC = g++
 
-all: serverM.out serverA.out serverB.out serverC.out clientA.out clientB.out
+all: clean serverM.out serverA.out serverB.out serverC.out clientA.out clientB.out
 
 clean:
-	@ $(RM) serverC serverT serverS serverP clientA clientB
+	@ $(RM) serverM serverA serverB serverC clientA clientB
 
 serverM.out: serverM.cpp
 	@ $(CC) -o serverM serverM.cpp

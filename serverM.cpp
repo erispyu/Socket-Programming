@@ -23,7 +23,7 @@
 #define UDP_PORT_SERVER_A "21256"
 #define UDP_PORT_SERVER_B "22256"
 #define UDP_PORT_SERVER_C "23256"
-#define SLAVE_SERVER_SIZE 1
+#define SLAVE_SERVER_SIZE 3
 
 #define UDP_PORT_SERVER_M "24256"
 #define TCP_PORT_CLIENT_A "25256"
@@ -67,10 +67,10 @@ QueryResult operation_results[CLIENT_SIZE];
 
 int sockfd_udp_serverM;
 int tcp_listener[CLIENT_SIZE];
-vector<const char *> tcp_port_list;
+const char* tcp_port_list[CLIENT_SIZE];
 
-vector<struct addrinfo *> slave_server_info_list;
-vector<const char *> udp_port_list;
+struct addrinfo* slave_server_info_list[SLAVE_SERVER_SIZE];
+const char* udp_port_list[SLAVE_SERVER_SIZE];
 
 int max_serial_number = 0;
 
@@ -111,51 +111,51 @@ void start_udp_listener(const char *port) {
 }
 
 // refer to https://beej.us/guide/bgnet/examples/server.c
-int start_tcp_listener(const char *port) {
-    tcp_port_list.push_back(port);
-
-    int tcp_listener;
+void start_tcp_listener(int client_index) {
     int yes = 1;
     int rv;
 
-    struct addrinfo hints, *ai, *p;
+    struct addrinfo hints, *servinfo, *p;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    if ((rv = getaddrinfo(NULL, port, &hints, &ai)) != 0) {
+    if ((rv = getaddrinfo(NULL, tcp_port_list[client_index], &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         exit(1);
     }
 
-    for (p = ai; p != NULL; p = p->ai_next) {
-        tcp_listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (tcp_listener < 0) {
+    for (p = servinfo; p != NULL; p = p->ai_next) {
+        tcp_listener[client_index] = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (tcp_listener[client_index] < 0) {
             continue;
         }
 
-        setsockopt(tcp_listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+        if (setsockopt(tcp_listener[client_index], SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+            perror("setsockopt");
+            exit(1);
+        }
 
-        if (::bind(tcp_listener, p->ai_addr, p->ai_addrlen) < 0) {
-            close(tcp_listener);
+        if (::bind(tcp_listener[client_index], p->ai_addr, p->ai_addrlen) < 0) {
+            close(tcp_listener[client_index]);
+            perror("server: bind");
             continue;
         }
 
         break;
     }
 
-    freeaddrinfo(ai);
+    freeaddrinfo(servinfo);
 
-    if ((p == NULL) || (listen(tcp_listener, 10) == -1)) {
-        return -1;
+    if ((p == NULL) || (listen(tcp_listener[client_index], 10) == -1)) {
+        exit(-1);
     }
-
-    return tcp_listener;
 }
 
 // refer to https://beej.us/guide/bgnet/examples/talker.c
-void start_udp_talker(const char *port) {
+void start_udp_talker(int slave_index) {
     int sockfd;
     struct addrinfo hints, *servinfo, *p;
     int rv;
@@ -164,7 +164,7 @@ void start_udp_talker(const char *port) {
     hints.ai_family = AF_INET; // set to AF_INET to use IPv4
     hints.ai_socktype = SOCK_DGRAM;
 
-    if ((rv = getaddrinfo(localhost, port, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(localhost, udp_port_list[slave_index], &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         exit(1);
     }
@@ -184,53 +184,53 @@ void start_udp_talker(const char *port) {
         fprintf(stderr, "talker: failed to create socket\n");
         exit(2);
     }
-
-    slave_server_info_list.push_back(servinfo);
-    udp_port_list.push_back(port);
 }
 
 void boot_up_serverM() {
-    start_udp_listener(UDP_PORT_SERVER_M);
+//    start_udp_listener(UDP_PORT_SERVER_M);
+//
+//    start_udp_talker(0);
+//    start_udp_talker(1);
+//    start_udp_talker(2);
 
-    start_udp_talker(UDP_PORT_SERVER_A);
-    start_udp_talker(UDP_PORT_SERVER_B);
-    start_udp_talker(UDP_PORT_SERVER_C);
+    tcp_port_list[0] = TCP_PORT_CLIENT_A;
+    tcp_port_list[1] = TCP_PORT_CLIENT_B;
 
-    tcp_listener[0] = start_tcp_listener(TCP_PORT_CLIENT_A);
-    tcp_listener[1] = start_tcp_listener(TCP_PORT_CLIENT_B);
+    start_tcp_listener(0);
+    start_tcp_listener(1);
 
     cout << "The main server is up and running." << endl;
 }
 
 void talk_to_slave_server(int i) {
-    sockaddr *slave_server_addr = slave_server_info_list.at(i)->ai_addr;
-    socklen_t slave_server_addrlen = slave_server_info_list.at(i)->ai_addrlen;
-
-    int sendto_result = sendto(sockfd_udp_serverM, &query, sizeof(query), FLAG, slave_server_addr,
-                               slave_server_addrlen);
-    if (sendto_result == -1) {
-        exit(1);
-    }
+//    sockaddr *slave_server_addr = slave_server_info_list[i]->ai_addr;
+//    socklen_t slave_server_addrlen = slave_server_info_list[i]->ai_addrlen;
+//
+//    int sendto_result = sendto(sockfd_udp_serverM, &query, sizeof(query), FLAG, slave_server_addr,
+//                               slave_server_addrlen);
+//    if (sendto_result == -1) {
+//        exit(1);
+//    }
 
     cout << "The main server sent a request to server " << (char) ('A' + i) << "." << endl;
 }
 
 void listen_from_slave_server(int i) {
-    memset(recv_buffer, 0, BUF_SIZE);
-    struct sockaddr_storage their_addr;
-    socklen_t addr_len = sizeof their_addr;
-    int recv_result = recvfrom(sockfd_udp_serverM, &recv_buffer, BUF_SIZE, FLAG, (struct sockaddr *) &their_addr,
-                               &addr_len);
-    if (recv_result == -1) {
-        perror("recvfrom error");
-        exit(1);
-    }
-
-    memset(&query_result, 0, sizeof(query_result));
-    memcpy(&query_result, recv_buffer, sizeof(query_result));
+//    memset(recv_buffer, 0, BUF_SIZE);
+//    struct sockaddr_storage their_addr;
+//    socklen_t addr_len = sizeof their_addr;
+//    int recv_result = recvfrom(sockfd_udp_serverM, &recv_buffer, BUF_SIZE, FLAG, (struct sockaddr *) &their_addr,
+//                               &addr_len);
+//    if (recv_result == -1) {
+//        perror("recvfrom error");
+//        exit(1);
+//    }
+//
+//    memset(&query_result, 0, sizeof(query_result));
+//    memcpy(&query_result, recv_buffer, sizeof(query_result));
 
     cout << "The main server received the feedback from server " << (char) ('A' + i) << "using UDP over port "
-         << udp_port_list.at(i) << "." << endl;
+         << udp_port_list[i] << "." << endl;
 }
 
 bool compareTransaction(Transaction t1, Transaction t2) {
@@ -244,8 +244,8 @@ int check_wallet(string username) {
     query.sender = username;
 
     for (int i = 0; i < SLAVE_SERVER_SIZE; i++) {
-        talk_to_slave_server(i);
-        listen_from_slave_server(i);
+//        talk_to_slave_server(i);
+//        listen_from_slave_server(i);
 
         for (int k = 0; k < query_result.size; k++) {
             Transaction t = query_result.transaction_list[k];

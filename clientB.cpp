@@ -41,7 +41,7 @@ QueryResult operation_result;
 int sockfd;
 char buf[BUF_SIZE];
 
-int start_tcp() {
+void start_tcp() {
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET_ADDRSTRLEN];
@@ -52,7 +52,6 @@ int start_tcp() {
 
     if ((rv = getaddrinfo(localhost, TCP_PORT, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
     }
 
     for(p = servinfo; p != NULL; p = p->ai_next) {
@@ -73,7 +72,6 @@ int start_tcp() {
 
     if (p == NULL) {
         fprintf(stderr, "client: failed to connect\n");
-        return 2;
     }
 
     freeaddrinfo(servinfo); // all done with this structure
@@ -147,7 +145,7 @@ int main(int argc, char *argv[])
     start_tcp();
     cout << "The client is up and running." << endl;
 
-    if (argc == 1 && argv[0] == "TXLIST") {
+    if (argc == 1 && strcmp(argv[0], "TXLIST") == 0) {
         get_and_sort_all_transactions();
     }
 
@@ -155,7 +153,7 @@ int main(int argc, char *argv[])
         check_wallet(argv[0]);
     }
 
-    else if (argc == 2 && argv[1] == "stats") {
+    else if (argc == 2 && strcmp(argv[0], "stats") == 0) {
         stats(argv[0]);
     }
 

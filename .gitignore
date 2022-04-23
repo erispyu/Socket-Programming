@@ -1,2 +1,8 @@
 /cmake-build-debug/
 /.idea/
+/clientA
+/clientB
+/serverA
+/serverB
+/serverC
+/serverM

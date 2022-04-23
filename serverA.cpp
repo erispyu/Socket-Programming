@@ -222,9 +222,11 @@ int main() {
     parse_block_file();
     cout << "The ServerA is up and running using UDP on port " << UDP_PORT << "." << endl;
 
-    listen_from_serverM();
-    handle_query();
-    talk_to_serverM();
+    while(true) {
+        listen_from_serverM();
+        handle_query();
+        talk_to_serverM();
+    }
 
     return 0;
 }
